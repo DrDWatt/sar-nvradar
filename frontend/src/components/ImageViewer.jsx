@@ -76,14 +76,26 @@ export default function ImageViewer({ datasets, health }) {
       setOriginalUrl(origUrl)
       setEnhancedUrl(null)
 
-      // Run agent analysis (POST) then fetch best image (GET)
+      // Run agent analysis (POST) then fetch best image using the winning algorithm
       fetch(`${API_BASE}/auto-enhance?${params}`, { method: 'POST' })
         .then(r => r.json())
         .then(data => {
           setAgentAnalysis(data)
           setProcessingTime(data.total_time_ms)
-          // Now fetch the best image
-          return fetch(`${API_BASE}/auto-enhance/image?${params}`)
+          // Use the regular endpoint with the best algorithm
+          const bestAlgo = data.best_algorithm
+          let enhUrl
+          if (ds.type === 'target_discrimination') {
+            const vehicle = ds.id.split('/')[1]
+            enhUrl = `${API_BASE}/image/target-disc/enhanced?vehicle=${vehicle}&file_index=${selectedFile}&algorithm=${bestAlgo}&image_size=${imageSize}${baseDir}`
+          } else if (ds.type === 'gmti') {
+            const channel = ds.id.split('/')[1]
+            enhUrl = `${API_BASE}/image/gmti/enhanced?channel=${channel}&image_size=${imageSize}${baseDir}`
+          } else {
+            const path = ds.id.replace('geotiff/', '')
+            enhUrl = `${API_BASE}/image/geotiff/enhanced?path=${encodeURIComponent(path)}&algorithm=${bestAlgo}&image_size=${imageSize}${baseDir}`
+          }
+          return fetch(enhUrl)
         })
         .then(r => r.blob())
         .then(blob => {
