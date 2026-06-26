@@ -73,6 +73,26 @@ export default function DataPanel({ datasets, sources, onDatasetsChange, dataset
     setDownloading(null)
   }
 
+  const deleteDataset = async (datasetId) => {
+    // Extract the dataset name from the id (e.g., "geotiff/sen1floods11_Bolivia/file.tif" -> use folder name)
+    const parts = datasetId.split('/')
+    const name = parts.length > 1 ? parts[1] : parts[0]
+    if (!confirm(`Delete dataset "${name}"? This cannot be undone.`)) return
+
+    try {
+      const res = await fetch(`${API_BASE}/datasets/${encodeURIComponent(name)}`, { method: 'DELETE' })
+      if (res.ok) {
+        setUploadMsg(`Deleted "${name}"`)
+        onDatasetsChange()
+      } else {
+        const data = await res.json()
+        setUploadMsg(`Error: ${data.detail || 'Delete failed'}`)
+      }
+    } catch (err) {
+      setUploadMsg(`Error: ${err.message}`)
+    }
+  }
+
   const tabs = [
     { id: 'datasets', label: `Datasets (${datasets.length})` },
     { id: 'upload', label: 'Upload' },
@@ -121,12 +141,19 @@ export default function DataPanel({ datasets, sources, onDatasetsChange, dataset
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {datasets.map(ds => (
-                  <div key={ds.id} className="bg-gray-700/50 rounded p-3 border border-gray-600">
-                    <p className="text-sm font-medium text-gray-200 truncate">{ds.name}</p>
+                  <div key={ds.id} className="bg-gray-700/50 rounded p-3 border border-gray-600 group relative">
+                    <p className="text-sm font-medium text-gray-200 truncate pr-6">{ds.name}</p>
                     <p className="text-xs text-gray-400 mt-1">
                       {ds.type === 'geotiff' ? 'GeoTIFF' : ds.type === 'gmti' ? 'GMTI' : 'Phase History'}
                       {' '}&middot; {ds.file_count} file(s)
                     </p>
+                    <button
+                      onClick={() => deleteDataset(ds.id)}
+                      className="absolute top-2 right-2 text-gray-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity text-sm"
+                      title="Delete dataset"
+                    >
+                      &#10005;
+                    </button>
                   </div>
                 ))}
               </div>
